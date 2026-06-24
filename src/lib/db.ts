@@ -1,12 +1,10 @@
 import { PrismaClient } from "@prisma/client";
+import fs from "fs";
+import path from "path";
 
 // Ensure DATABASE_URL is loaded when running standalone scripts (e.g., npm run db:seed)
 if (!process.env.DATABASE_URL) {
   try {
-    // lightweight loader for .env.local
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const fs = require("fs");
-    const path = require("path");
     const envPath = path.resolve(process.cwd(), ".env.local");
     if (fs.existsSync(envPath)) {
       const contents = fs.readFileSync(envPath, "utf8");
@@ -26,7 +24,7 @@ if (!process.env.DATABASE_URL) {
         if (!process.env[key]) process.env[key] = val;
       }
     }
-  } catch (e) {
+  } catch {
     // ignore
   }
 }

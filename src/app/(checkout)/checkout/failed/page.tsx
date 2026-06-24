@@ -1,11 +1,12 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { XCircle, RefreshCw, ShoppingBag, MessageCircle } from "lucide-react";
 
-export default function CheckoutFailedPage() {
+function CheckoutFailedContent() {
   const searchParams = useSearchParams();
   const reason = searchParams.get("reason") ?? "Payment was not completed";
 
@@ -59,5 +60,13 @@ export default function CheckoutFailedPage() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function CheckoutFailedPage() {
+  return (
+    <Suspense>
+      <CheckoutFailedContent />
+    </Suspense>
   );
 }
