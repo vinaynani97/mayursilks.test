@@ -1,0 +1,459 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ─────────────────────────────────────────────
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum Availability {
+  IN_STOCK
+  OUT_OF_STOCK
+  MADE_TO_ORDER
+}
+
+enum OrderStatus {
+  PLACED
+  CONFIRMED
+  PACKED
+  SHIPPED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+enum CouponType {
+  PERCENTAGE
+  FIXED
+}
+
+enum InventoryLogType {
+  ORDER_PLACED
+  ORDER_CANCELLED
+  MANUAL_ADD
+  MANUAL_REMOVE
+}
+
+enum EmailType {
+  WELCOME
+  ORDER_CONFIRMATION
+  PAYMENT_SUCCESS
+  ORDER_CONFIRMED
+  ORDER_PACKED
+  ORDER_SHIPPED
+  OUT_FOR_DELIVERY
+  ORDER_DELIVERED
+  ORDER_CANCELLED
+  REFUND_PROCESSED
+  ADMIN_NEW_ORDER
+  ADMIN_LOW_STOCK
+  ADMIN_OUT_OF_STOCK
+  ADMIN_DAILY_SUMMARY
+  ADMIN_PAYMENT_FAILED
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+// ─── Auth (NextAuth v5) ────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── User ──────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String?   @unique
+  emailVerified DateTime?
+  phone         String?   @unique
+  phoneVerified DateTime?
+  password      String?
+  avatar        String?
+  role          Role      @default(CUSTOMER)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  orders        Order[]
+  wishlist      WishlistItem[]
+  addresses     Address[]
+  reviews       Review[]
+  cart          Cart?
+  couponUsages  CouponUsage[]
+  emailLogs     EmailLog[]
+}
+
+// ─── Category ──────────────────────────────────────────
+
+model Category {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String?
+  image       String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products Product[]
+}
+
+// ─── Product ───────────────────────────────────────────
+
+model Product {
+  id               String       @id @default(cuid())
+  slug             String       @unique
+  sku              String       @unique
+  name             String
+  description      String       @db.Text
+  price            Int
+  originalPrice    Int?
+  images           String[]
+  fabric           String
+  weavingTechnique String
+  designDetails    String       @db.Text
+  length           String
+  color            String
+  availability     Availability @default(IN_STOCK)
+  stock            Int          @default(0)
+  isNew            Boolean      @default(false)
+  isBestSeller     Boolean      @default(false)
+  isFeatured       Boolean      @default(false)
+  tags             String[]
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  category   Category @relation(fields: [categoryId], references: [id])
+  categoryId String
+
+  orderItems     CartItem[]
+  orderLines     OrderItem[]
+  reviews        Review[]
+  wishlist       WishlistItem[]
+  inventoryLogs  InventoryLog[]
+
+  @@index([categoryId])
+  @@index([isNew])
+  @@index([isBestSeller])
+  @@index([isFeatured])
+  @@index([availability])
+}
+
+// ─── Cart ──────────────────────────────────────────────
+
+model Cart {
+  id        String     @id @default(cuid())
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String     @unique
+  items  CartItem[]
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cartId    String
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+
+  @@unique([cartId, productId])
+}
+
+// ─── Wishlist ──────────────────────────────────────────
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+
+  @@unique([userId, productId])
+}
+
+// ─── Address ───────────────────────────────────────────
+
+model Address {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String
+  line1     String
+  line2     String?
+  city      String
+  state     String
+  pincode   String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  orders Order[]
+
+  @@index([userId])
+}
+
+// ─── Order ─────────────────────────────────────────────
+
+model Order {
+  id            String      @id @default(cuid())
+  orderNumber   String      @unique
+  status        OrderStatus @default(PLACED)
+  total         Int
+  subtotal      Int
+  discount      Int         @default(0)
+  shippingCost  Int         @default(0)
+  paymentMethod   String
+  paymentId       String?
+  razorpayOrderId String?
+  trackingNumber  String?
+  courierPartner  String?
+  notes           String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id])
+  userId   String
+  address  Address   @relation(fields: [addressId], references: [id])
+  addressId String
+  items    OrderItem[]
+  coupon   Coupon?   @relation(fields: [couponId], references: [id])
+  couponId String?
+  inventoryLogs InventoryLog[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  quantity  Int
+  price     Int
+  name      String
+  image     String?
+  createdAt DateTime @default(now())
+
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId   String
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+}
+
+// ─── Review ────────────────────────────────────────────
+
+model Review {
+  id         String   @id @default(cuid())
+  rating     Int
+  comment    String   @db.Text
+  isApproved Boolean  @default(false)
+  isFeatured Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user      User    @relation(fields: [userId], references: [id])
+  userId    String
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+
+  @@index([productId])
+  @@index([isApproved])
+}
+
+// ─── Blog ──────────────────────────────────────────────
+
+model Blog {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  excerpt     String   @db.Text
+  content     String   @db.Text
+  coverImage  String?
+  author      String
+  isPublished Boolean  @default(false)
+  tags        String[]
+  readingTime Int      @default(5)
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── Coupon ────────────────────────────────────────────
+
+model Coupon {
+  id           String     @id @default(cuid())
+  code         String     @unique
+  description  String?
+  type         CouponType @default(PERCENTAGE)
+  value        Int
+  minOrderAmt  Int?
+  maxDiscount  Int?
+  maxUses      Int?
+  perUserLimit Int?
+  usedCount    Int        @default(0)
+  isActive     Boolean    @default(true)
+  startsAt     DateTime?
+  expiresAt    DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  orders       Order[]
+  couponUsages CouponUsage[]
+}
+
+model CouponUsage {
+  id       String   @id @default(cuid())
+  usedAt   DateTime @default(now())
+
+  coupon   Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  couponId String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String
+
+  @@index([couponId])
+  @@index([userId])
+}
+
+// ─── Newsletter ────────────────────────────────────────
+
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+// ─── OTP ───────────────────────────────────────────────
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  mobile    String
+  code      String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([mobile])
+}
+
+// ─── SiteSetting ───────────────────────────────────────
+
+model SiteSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Notification ──────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  title     String
+  message   String
+  type      String   @default("info")
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// ─── EmailLog ──────────────────────────────────────────
+
+model EmailLog {
+  id           String      @id @default(cuid())
+  email        String
+  subject      String
+  type         EmailType
+  status       EmailStatus @default(PENDING)
+  provider     String      @default("resend")
+  errorMessage String?
+  referenceId  String?
+  sentAt       DateTime?
+  createdAt    DateTime    @default(now())
+
+  userId       String?
+  user         User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ─── InventoryLog ──────────────────────────────────────
+
+model InventoryLog {
+  id          String           @id @default(cuid())
+  type        InventoryLogType
+  change      Int
+  stockBefore Int
+  stockAfter  Int
+  reason      String
+  createdAt   DateTime         @default(now())
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  orderId String?
+  order   Order?  @relation(fields: [orderId], references: [id])
+
+  @@index([productId])
+  @@index([createdAt])
+}

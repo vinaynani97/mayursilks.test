@@ -2,26 +2,133 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: 0 0% 100%;
+    --foreground: 0 0% 8%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 8%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 8%;
+    --primary: 339 100% 17%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 45 97% 63%;
+    --secondary-foreground: 0 0% 8%;
+    --muted: 30 20% 96%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 30 20% 94%;
+    --accent-foreground: 0 0% 8%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 30 15% 88%;
+    --input: 30 15% 88%;
+    --ring: 339 100% 17%;
+    --radius: 0.5rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-jost;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-josefin;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .luxury-section {
+    @apply py-16 md:py-24;
+  }
+
+  .container-luxury {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .heading-display {
+    @apply font-josefin text-4xl md:text-5xl lg:text-6xl font-light tracking-tight;
+  }
+
+  .heading-section {
+    @apply font-josefin text-2xl md:text-3xl lg:text-4xl font-semibold tracking-tight;
+  }
+
+  .text-gold {
+    @apply text-secondary-500;
+  }
+
+  .bg-luxury {
+    background: linear-gradient(135deg, #550022 0%, #3c0018 50%, #2f0013 100%);
+  }
+
+  .btn-primary {
+    @apply bg-primary-500 hover:bg-primary-600 text-white font-jost font-medium px-6 py-3 rounded-md transition-all duration-300 hover:shadow-lg hover:shadow-primary-500/25 active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary-500 hover:bg-secondary-600 text-primary-900 font-jost font-semibold px-6 py-3 rounded-md transition-all duration-300 hover:shadow-lg hover:shadow-secondary-500/25 active:scale-95;
+  }
+
+  .btn-outline {
+    @apply border border-primary-500 text-primary-500 hover:bg-primary-500 hover:text-white font-jost font-medium px-6 py-3 rounded-md transition-all duration-300 active:scale-95;
+  }
+
+  .card-luxury {
+    @apply bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 border border-cream-200;
+  }
+
+  .input-luxury {
+    @apply w-full px-4 py-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 font-jost text-sm transition-all duration-200;
+  }
+
+  .badge-new {
+    @apply absolute top-3 left-3 bg-secondary-500 text-primary-900 text-xs font-semibold px-2 py-1 rounded-sm z-10;
+  }
+
+  .badge-sale {
+    @apply absolute top-3 right-3 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-sm z-10;
+  }
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  .scrollbar-hide,
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar,
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mask-gradient-b {
+    mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+  }
+
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .animation-delay-400 {
+    animation-delay: 400ms;
+  }
+
+  .animation-delay-600 {
+    animation-delay: 600ms;
   }
 }
