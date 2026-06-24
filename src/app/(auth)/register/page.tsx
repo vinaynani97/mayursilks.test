@@ -4,82 +4,81 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Phone, User, Mail, AlertCircle, ArrowLeft, CheckCircle } from "lucide-react";
+import { User, Mail, Phone, Lock, Eye, EyeOff, AlertCircle, CheckCircle } from "lucide-react";
+import { registerUser } from "@/actions/auth";
+
+function passwordStrength(pw: string): { label: string; color: string; score: number } {
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[a-z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  if (score <= 2) return { label: "Weak", color: "bg-red-400", score };
+  if (score === 3) return { label: "Fair", color: "bg-amber-400", score };
+  if (score === 4) return { label: "Good", color: "bg-blue-400", score };
+  return { label: "Strong", color: "bg-green-500", score };
+}
 
 export default function RegisterPage() {
   const router = useRouter();
 
-  const [step, setStep] = useState<"details" | "otp">("details");
-  const [form, setForm] = useState({ name: "", mobile: "", email: "" });
-  const [otp, setOtp] = useState("");
-  const [devOtp, setDevOtp] = useState("");
+  const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", confirm: "" });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [resendCooldown, setResendCooldown] = useState(0);
 
-  function startResendTimer() {
-    setResendCooldown(60);
-    const t = setInterval(() => {
-      setResendCooldown((s) => {
-        if (s <= 1) { clearInterval(t); return 0; }
-        return s - 1;
-      });
-    }, 1000);
+  const strength = passwordStrength(form.password);
+
+  function set(field: keyof typeof form) {
+    return (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm((f) => ({ ...f, [field]: e.target.value }));
   }
 
-  async function sendOtp() {
-    const res = await fetch("/api/auth/otp/send", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mobile: form.mobile }),
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+
+    if (form.password !== form.confirm) {
+      setError("Passwords do not match");
+      return;
+    }
+    if (strength.score < 3) {
+      setError("Password is too weak. Add uppercase, lowercase, and numbers.");
+      return;
+    }
+
+    setLoading(true);
+    const result = await registerUser({
+      name: form.name.trim(),
+      email: form.email.trim().toLowerCase(),
+      phone: form.phone,
+      password: form.password,
     });
-    const data = await res.json();
-    if (!res.ok) { setError(data.error); return false; }
-    if (data.otp) setDevOtp(data.otp);
-    startResendTimer();
-    return true;
-  }
 
-  async function handleSendOtp(e: { preventDefault(): void }) {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    const ok = await sendOtp();
-    setLoading(false);
-    if (ok) setStep("otp");
-  }
+    if (!result.success) {
+      setError(result.message ?? "Registration failed");
+      setLoading(false);
+      return;
+    }
 
-  async function handleVerifyOtp(e: { preventDefault(): void }) {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    const result = await signIn("otp", {
-      mobile: form.mobile,
-      otp,
-      name: form.name,
-      email: form.email || undefined,
-      mode: "register",
+    // Auto sign in after registration
+    const signInResult = await signIn("credentials", {
+      identifier: form.email.trim().toLowerCase(),
+      password: form.password,
       redirect: false,
     });
 
     setLoading(false);
-    if (result?.error) {
-      setError("Invalid OTP. Please check and try again.");
+    if (signInResult?.error) {
+      // Registration succeeded but auto sign-in failed — redirect to login
+      router.push("/login?registered=1");
       return;
     }
 
     router.push("/account");
     router.refresh();
-  }
-
-  async function handleResend() {
-    if (resendCooldown > 0) return;
-    setOtp("");
-    setDevOtp("");
-    setLoading(true);
-    await sendOtp();
-    setLoading(false);
   }
 
   return (
@@ -104,128 +103,132 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {step === "details" ? (
-            <form onSubmit={handleSendOtp} className="space-y-4">
-              {/* Full Name */}
-              <div>
-                <label className="block font-jost text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
-                <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    value={form.name}
-                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                    required
-                    placeholder="Your full name"
-                    className="w-full pl-11 pr-4 h-11 border border-gray-200 rounded-xl font-jost text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
-                  />
-                </div>
-              </div>
-
-              {/* Mobile */}
-              <div>
-                <label className="block font-jost text-sm font-medium text-gray-700 mb-1.5">Mobile Number</label>
-                <div className="relative">
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                    <Phone className="w-4 h-4 text-gray-400" />
-                    <span className="font-jost text-sm text-gray-500">+91</span>
-                  </div>
-                  <input
-                    type="tel"
-                    value={form.mobile}
-                    onChange={(e) => setForm((f) => ({ ...f, mobile: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
-                    required
-                    placeholder="9876543210"
-                    className="w-full pl-20 pr-4 h-11 border border-gray-200 rounded-xl font-jost text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
-                  />
-                </div>
-              </div>
-
-              {/* Email (optional) */}
-              <div>
-                <label className="block font-jost text-sm font-medium text-gray-700 mb-1.5">
-                  Email <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                    placeholder="you@example.com"
-                    className="w-full pl-11 pr-4 h-11 border border-gray-200 rounded-xl font-jost text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading || form.name.trim().length < 2 || form.mobile.length !== 10}
-                className="w-full h-11 bg-primary-500 hover:bg-primary-600 disabled:opacity-60 text-white font-jost font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Sending OTP...</>
-                ) : (
-                  "Send OTP"
-                )}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <button
-                type="button"
-                onClick={() => { setStep("details"); setOtp(""); setError(""); }}
-                className="flex items-center gap-1.5 font-jost text-sm text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                +91 {form.mobile}
-              </button>
-
-              <div>
-                <label className="block font-jost text-sm font-medium text-gray-700 mb-1.5">
-                  Enter 6-digit OTP
-                </label>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Full Name */}
+            <div>
+              <label className="block font-jost text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
+              <div className="relative">
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  inputMode="numeric"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  value={form.name}
+                  onChange={set("name")}
                   required
-                  placeholder="______"
-                  className="w-full px-4 h-12 border border-gray-200 rounded-xl font-josefin text-2xl text-center tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
+                  minLength={2}
+                  placeholder="Your full name"
+                  className="w-full pl-11 pr-4 h-11 border border-gray-200 rounded-xl font-jost text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
                 />
-                {devOtp && (
-                  <p className="mt-2 font-jost text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    Dev mode — OTP: <strong>{devOtp}</strong>
+              </div>
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="block font-jost text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={set("email")}
+                  required
+                  placeholder="you@example.com"
+                  className="w-full pl-11 pr-4 h-11 border border-gray-200 rounded-xl font-jost text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
+                />
+              </div>
+            </div>
+
+            {/* Phone */}
+            <div>
+              <label className="block font-jost text-sm font-medium text-gray-700 mb-1.5">Mobile Number</label>
+              <div className="relative">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                  <Phone className="w-4 h-4 text-gray-400" />
+                  <span className="font-jost text-sm text-gray-500">+91</span>
+                </div>
+                <input
+                  type="tel"
+                  value={form.phone}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
+                  required
+                  placeholder="9876543210"
+                  className="w-full pl-20 pr-4 h-11 border border-gray-200 rounded-xl font-jost text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
+                />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div>
+              <label className="block font-jost text-sm font-medium text-gray-700 mb-1.5">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={form.password}
+                  onChange={set("password")}
+                  required
+                  minLength={8}
+                  placeholder="Min. 8 characters"
+                  className="w-full pl-11 pr-11 h-11 border border-gray-200 rounded-xl font-jost text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
+                />
+                <button type="button" onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {form.password && (
+                <div className="mt-2 space-y-1">
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i <= strength.score ? strength.color : "bg-gray-200"}`} />
+                    ))}
+                  </div>
+                  <p className={`font-jost text-xs ${strength.score <= 2 ? "text-red-500" : strength.score === 3 ? "text-amber-500" : strength.score === 4 ? "text-blue-500" : "text-green-600"}`}>
+                    {strength.label} — use uppercase, lowercase, numbers & symbols
                   </p>
+                </div>
+              )}
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <label className="block font-jost text-sm font-medium text-gray-700 mb-1.5">Confirm Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type={showConfirm ? "text" : "password"}
+                  value={form.confirm}
+                  onChange={set("confirm")}
+                  required
+                  placeholder="Re-enter password"
+                  className={`w-full pl-11 pr-11 h-11 border rounded-xl font-jost text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition-colors ${
+                    form.confirm && form.confirm !== form.password ? "border-red-300 focus:border-red-400" : "border-gray-200 focus:border-primary-500"
+                  }`}
+                />
+                <button type="button" onClick={() => setShowConfirm((v) => !v)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+                {form.confirm && form.confirm === form.password && (
+                  <CheckCircle className="absolute right-10 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
                 )}
               </div>
+              {form.confirm && form.confirm !== form.password && (
+                <p className="mt-1 font-jost text-xs text-red-500">Passwords do not match</p>
+              )}
+            </div>
 
-              <button
-                type="submit"
-                disabled={loading || otp.length !== 6}
-                className="w-full h-11 bg-primary-500 hover:bg-primary-600 disabled:opacity-60 text-white font-jost font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Creating account...</>
-                ) : (
-                  <><CheckCircle className="w-4 h-4" /> Verify & Create Account</>
-                )}
-              </button>
-
-              <p className="text-center font-jost text-sm text-gray-500">
-                Didn&apos;t receive it?{" "}
-                <button
-                  type="button"
-                  onClick={handleResend}
-                  disabled={resendCooldown > 0}
-                  className="text-primary-500 hover:text-primary-700 font-medium disabled:text-gray-400 disabled:cursor-not-allowed"
-                >
-                  {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend OTP"}
-                </button>
-              </p>
-            </form>
-          )}
+            <button
+              type="submit"
+              disabled={loading || form.phone.length !== 10 || form.name.trim().length < 2}
+              className="w-full h-11 bg-primary-500 hover:bg-primary-600 disabled:opacity-60 text-white font-jost font-semibold rounded-xl transition-all flex items-center justify-center gap-2 mt-2"
+            >
+              {loading ? (
+                <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Creating account...</>
+              ) : (
+                "Create Account"
+              )}
+            </button>
+          </form>
         </div>
 
         <p className="text-center font-jost text-sm text-gray-500 mt-6">

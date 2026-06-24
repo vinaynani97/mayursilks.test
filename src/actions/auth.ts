@@ -4,16 +4,35 @@ import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { sendWelcomeEmail } from "@/lib/email";
 
+function validatePassword(password: string): string | null {
+  if (password.length < 8) return "Password must be at least 8 characters";
+  if (!/[A-Z]/.test(password)) return "Password must contain at least one uppercase letter";
+  if (!/[a-z]/.test(password)) return "Password must contain at least one lowercase letter";
+  if (!/[0-9]/.test(password)) return "Password must contain at least one number";
+  return null;
+}
+
 export async function registerUser(data: {
   name: string;
   email: string;
+  phone: string;
   password: string;
-  phone?: string;
 }) {
-  const existing = await prisma.user.findUnique({ where: { email: data.email } });
-  if (existing) {
-    return { success: false, message: "Email already registered" };
+  const pwError = validatePassword(data.password);
+  if (pwError) return { success: false, message: pwError };
+
+  const phone = data.phone.replace(/\D/g, "").slice(-10);
+  if (!/^[6-9]\d{9}$/.test(phone)) {
+    return { success: false, message: "Enter a valid 10-digit Indian mobile number" };
   }
+
+  const [byEmail, byPhone] = await Promise.all([
+    prisma.user.findUnique({ where: { email: data.email } }),
+    prisma.user.findUnique({ where: { phone } }),
+  ]);
+
+  if (byEmail) return { success: false, message: "Email is already registered" };
+  if (byPhone) return { success: false, message: "Mobile number is already registered" };
 
   const hashed = await bcrypt.hash(data.password, 12);
   const user = await prisma.user.create({
@@ -21,7 +40,7 @@ export async function registerUser(data: {
       name: data.name,
       email: data.email,
       password: hashed,
-      phone: data.phone || null,
+      phone,
       role: "CUSTOMER",
     },
   });
@@ -65,6 +84,9 @@ export async function changePassword(id: string, currentPassword: string, newPas
 
   const valid = await bcrypt.compare(currentPassword, user.password);
   if (!valid) return { success: false, message: "Current password is incorrect" };
+
+  const pwError = validatePassword(newPassword);
+  if (pwError) return { success: false, message: pwError };
 
   const hashed = await bcrypt.hash(newPassword, 12);
   await prisma.user.update({ where: { id }, data: { password: hashed } });
