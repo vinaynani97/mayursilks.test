@@ -25,12 +25,12 @@ import {
 
 export const LOW_STOCK_THRESHOLD = Number(process.env.LOW_STOCK_THRESHOLD ?? "5");
 
-function getResend(): Resend | null {
+export function getResend(): Resend | null {
   if (!process.env.RESEND_API_KEY) return null;
   return new Resend(process.env.RESEND_API_KEY);
 }
 
-function getFrom(): string {
+export function getFrom(): string {
   const name = process.env.EMAIL_FROM_NAME ?? "Mayur Silks";
   const addr = process.env.EMAIL_FROM_ADDRESS ?? "noreply@mayursilks.com";
   return `${name} <${addr}>`;

@@ -653,6 +653,59 @@ export interface AdminDailySummaryData {
   cancelledOrders: number;
 }
 
+// ─────────────────────────────────────────────────────────────
+// EMAIL OTP VERIFICATION
+// ─────────────────────────────────────────────────────────────
+
+export function emailOtpTemplate(name: string, otp: string): string {
+  const content = `
+<h1 style="color:#550022;font-size:26px;font-weight:normal;margin:0 0 4px;font-family:Georgia,serif;">Verify Your Email</h1>
+<p style="color:#8d546b;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin:0 0 24px;font-family:Georgia,serif;">Account Verification Code</p>
+${divider()}
+<p style="color:#4a4a4a;font-size:15px;line-height:1.8;margin:0 0 16px;font-family:Georgia,serif;">
+  Dear <strong style="color:#550022;">${name}</strong>,
+</p>
+<p style="color:#4a4a4a;font-size:15px;line-height:1.8;margin:0 0 24px;font-family:Georgia,serif;">
+  Use the code below to verify your email address and complete your Mayur Silks account registration.
+</p>
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 8px;">
+  <tr><td align="center">
+    <table cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="background:#faf7f2;border:2px solid #ede0cb;border-radius:16px;padding:24px 48px;text-align:center;">
+          <span style="color:#550022;font-size:44px;font-weight:bold;letter-spacing:14px;font-family:Georgia,serif;">${otp}</span>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+
+<p style="text-align:center;color:#8d8d8d;font-size:12px;margin:12px 0 24px;font-family:Georgia,serif;">
+  This code expires in <strong style="color:#550022;">10 minutes</strong> and is valid for one use only.
+</p>
+
+${divider()}
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fef9c3;border:1px solid #fef08a;border-radius:10px;margin-bottom:20px;">
+  <tr><td style="padding:14px 18px;">
+    <p style="color:#854d0e;font-size:13px;margin:0;line-height:1.7;font-family:Georgia,serif;">
+      🔒 <strong>Security Notice:</strong> Never share this code with anyone. Mayur Silks will never ask for your verification code via phone, email, or any other channel.
+    </p>
+  </td></tr>
+</table>
+
+<p style="color:#aaa;font-size:12px;line-height:1.6;margin:0;font-family:Georgia,serif;">
+  If you did not attempt to create a Mayur Silks account, you can safely ignore this email. No account has been created and your information has not been stored.
+</p>`;
+
+  return base(content, `Your Mayur Silks verification code is ${otp} — expires in 10 minutes`);
+}
+
+// ─────────────────────────────────────────────────────────────
+// ADMIN: DAILY SUMMARY
+// ─────────────────────────────────────────────────────────────
+
 export function adminDailySummaryTemplate(data: AdminDailySummaryData): string {
   const { date, totalOrders, totalRevenue, newCustomers, cancelledOrders } = data;
 

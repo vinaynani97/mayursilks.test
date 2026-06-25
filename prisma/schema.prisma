@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── Enums ─────────────────────────────────────────────
@@ -392,7 +393,7 @@ model PasswordResetToken {
   @@index([email])
 }
 
-// ─── OTP ───────────────────────────────────────────────
+// ─── OTP (SMS — legacy) ────────────────────────────────
 
 model OtpCode {
   id        String   @id @default(cuid())
@@ -403,6 +404,19 @@ model OtpCode {
   createdAt DateTime @default(now())
 
   @@index([mobile])
+}
+
+// ─── Email OTP ─────────────────────────────────────────
+
+model EmailOtpCode {
+  id         String   @id @default(cuid())
+  email      String
+  hashedCode String
+  attempts   Int      @default(0)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([email])
 }
 
 // ─── SiteSetting ───────────────────────────────────────
