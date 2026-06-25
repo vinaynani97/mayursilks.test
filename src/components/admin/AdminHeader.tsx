@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, Search, LogOut, User } from "lucide-react";
+import { Search, LogOut, User } from "lucide-react";
 import { signOut } from "next-auth/react";
 import Link from "next/link";
+import AdminNotificationBell from "@/components/notifications/AdminNotificationBell";
 
 interface AdminHeaderProps {
   user: { name?: string | null; email?: string | null; image?: string | null };
@@ -24,10 +25,7 @@ export default function AdminHeader({ user }: AdminHeaderProps) {
       </div>
 
       <div className="flex items-center gap-4">
-        <button className="relative p-2 text-gray-500 hover:text-gray-700">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-        </button>
+        <AdminNotificationBell />
 
         <div className="relative">
           <button

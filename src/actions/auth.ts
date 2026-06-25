@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { sendWelcomeEmail } from "@/lib/email";
+import { createNotification, createAdminNotification } from "@/lib/notifications";
 
 function validatePassword(password: string): string | null {
   if (password.length < 8) return "Password must be at least 8 characters";
@@ -46,6 +47,29 @@ export async function registerUser(data: {
   });
 
   sendWelcomeEmail(data.email, data.name, user.id);
+
+  // In-app notifications
+  void createNotification({
+    userId:   user.id,
+    role:     "CUSTOMER",
+    type:     "ACCOUNT_CREATED",
+    title:    "Welcome to Mayur Silks! 🎉",
+    message:  `Hi ${data.name}! Your account has been created. Explore our handloom saree collection.`,
+    icon:     "🎉",
+    link:     "/products",
+    priority: "NORMAL",
+    emailSent: true,
+  });
+
+  void createAdminNotification({
+    type:     "ADMIN_NEW_CUSTOMER",
+    title:    `New Customer: ${data.name}`,
+    message:  `${data.name} (${data.email}) just created an account.`,
+    icon:     "👤",
+    link:     "/admin/customers",
+    priority: "NORMAL",
+  });
+
   return { success: true };
 }
 
@@ -90,6 +114,18 @@ export async function changePassword(id: string, currentPassword: string, newPas
 
   const hashed = await bcrypt.hash(newPassword, 12);
   await prisma.user.update({ where: { id }, data: { password: hashed } });
+
+  void createNotification({
+    userId:   id,
+    role:     "CUSTOMER",
+    type:     "PASSWORD_CHANGED",
+    title:    "Password Changed",
+    message:  "Your account password was updated successfully. If you did not make this change, contact support immediately.",
+    icon:     "🔒",
+    link:     "/account/profile",
+    priority: "HIGH",
+  });
+
   return { success: true };
 }
 

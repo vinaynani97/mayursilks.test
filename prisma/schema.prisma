@@ -68,6 +68,55 @@ enum EmailStatus {
   FAILED
 }
 
+enum NotificationType {
+  // Generic
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+  // Customer — Account
+  ACCOUNT_CREATED
+  EMAIL_VERIFIED
+  PASSWORD_CHANGED
+  ADDRESS_UPDATED
+  // Customer — Orders
+  ORDER_PLACED
+  PAYMENT_SUCCESS
+  ORDER_CONFIRMED
+  ORDER_PACKED
+  ORDER_SHIPPED
+  OUT_FOR_DELIVERY
+  ORDER_DELIVERED
+  ORDER_CANCELLED
+  REFUND_PROCESSED
+  // Customer — Promotions
+  COUPON_RECEIVED
+  COUPON_EXPIRING
+  // Admin — Customers & Orders
+  ADMIN_NEW_CUSTOMER
+  ADMIN_NEW_ORDER
+  ADMIN_PAYMENT_SUCCESS
+  ADMIN_PAYMENT_FAILED
+  ADMIN_ORDER_CANCELLED
+  ADMIN_REFUND_REQUESTED
+  // Admin — Inventory
+  ADMIN_LOW_STOCK
+  ADMIN_OUT_OF_STOCK
+  ADMIN_INVENTORY_UPDATED
+  // Admin — Content & Marketing
+  ADMIN_NEW_REVIEW
+  ADMIN_COUPON_USED
+  ADMIN_CONTACT_FORM
+  ADMIN_NEWSLETTER
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
 // ─── Auth (NextAuth v5) ────────────────────────────────
 
 model Account {
@@ -131,6 +180,7 @@ model User {
   cart          Cart?
   couponUsages  CouponUsage[]
   emailLogs     EmailLog[]
+  notifications Notification[]
 }
 
 // ─── Category ──────────────────────────────────────────
@@ -432,12 +482,28 @@ model SiteSetting {
 // ─── Notification ──────────────────────────────────────
 
 model Notification {
-  id        String   @id @default(cuid())
+  id        String               @id @default(cuid())
+  userId    String?
+  role      Role                 @default(CUSTOMER)
   title     String
   message   String
-  type      String   @default("info")
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  type      NotificationType     @default(INFO)
+  priority  NotificationPriority @default(NORMAL)
+  icon      String?
+  link      String?
+  metadata  Json?
+  isRead    Boolean              @default(false)
+  emailSent Boolean              @default(false)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  user      User?                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@index([type])
+  @@index([role])
 }
 
 // ─── EmailLog ──────────────────────────────────────────

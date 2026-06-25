@@ -5,16 +5,17 @@ import Link from "next/link";
 import { signOut } from "next-auth/react";
 import {
   LayoutDashboard, ShoppingBag, Heart, MapPin, User,
-  LogOut, ShoppingCart, Sparkles, Package,
+  LogOut, ShoppingCart, Sparkles, Package, Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
-  { label: "Overview", href: "/account", icon: LayoutDashboard, exact: true },
-  { label: "My Orders", href: "/account/orders", icon: ShoppingBag },
-  { label: "Wishlist", href: "/account/wishlist", icon: Heart },
-  { label: "Addresses", href: "/account/addresses", icon: MapPin },
-  { label: "Profile", href: "/account/profile", icon: User },
+  { label: "Overview",      href: "/account",               icon: LayoutDashboard, exact: true },
+  { label: "My Orders",     href: "/account/orders",        icon: ShoppingBag },
+  { label: "Notifications", href: "/account/notifications", icon: Bell },
+  { label: "Wishlist",      href: "/account/wishlist",      icon: Heart },
+  { label: "Addresses",     href: "/account/addresses",     icon: MapPin },
+  { label: "Profile",       href: "/account/profile",       icon: User },
 ];
 
 const quickActions = [

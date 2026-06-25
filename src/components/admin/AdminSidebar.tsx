@@ -18,6 +18,7 @@ import {
   ChevronRight,
   ExternalLink,
   Warehouse,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -31,8 +32,9 @@ const navItems = [
   { label: "Blogs", href: "/admin/blogs", icon: FileText },
   { label: "Coupons", href: "/admin/coupons", icon: Ticket },
   { label: "Newsletter", href: "/admin/newsletter", icon: Mail },
-  { label: "Emails", href: "/admin/emails", icon: Send },
-  { label: "Settings", href: "/admin/settings", icon: Settings },
+  { label: "Emails",        href: "/admin/emails",         icon: Send },
+  { label: "Notifications", href: "/admin/notifications",  icon: Bell },
+  { label: "Settings",      href: "/admin/settings",       icon: Settings },
 ];
 
 export default function AdminSidebar() {

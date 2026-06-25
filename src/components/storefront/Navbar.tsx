@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
+import CustomerNotificationBell from "@/components/notifications/CustomerNotificationBell";
 
 type NavCategory = { id: string; name: string; slug: string };
 type NavUser = { id?: string; name?: string | null; email?: string | null; role?: string } | null;
@@ -137,6 +138,9 @@ export default function Navbar({ categories = [], user = null }: NavbarProps) {
               >
                 <Search className="w-5 h-5" />
               </button>
+
+              {/* Notification Bell — customers only */}
+              {user && user.role !== "ADMIN" && <CustomerNotificationBell />}
 
               {/* Wishlist */}
               <Link href="/wishlist" className="hidden sm:flex p-2 text-gray-600 hover:text-primary-500 transition-colors rounded-md hover:bg-primary-50 relative">

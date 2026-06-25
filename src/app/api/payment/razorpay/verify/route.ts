@@ -10,6 +10,7 @@ import {
   sendAdminOutOfStockEmail,
   LOW_STOCK_THRESHOLD,
 } from "@/lib/email";
+import { createNotification, createAdminNotification } from "@/lib/notifications";
 import { getCloudinaryUrl } from "@/lib/utils";
 
 interface NewAddress {
@@ -296,6 +297,51 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // ── In-app: customer order placed + payment confirmed ────────────────────
+    void createNotification({
+      userId:    userId,
+      role:      "CUSTOMER",
+      type:      "ORDER_PLACED",
+      title:     `Order Placed — #${order.orderNumber} 🛍️`,
+      message:   `Your order for ₹${total.toLocaleString("en-IN")} has been placed successfully!`,
+      icon:      "🛍️",
+      link:      `/account/orders/${order.id}`,
+      priority:  "NORMAL",
+      emailSent: !!userEmail,
+    });
+
+    void createNotification({
+      userId:    userId,
+      role:      "CUSTOMER",
+      type:      "PAYMENT_SUCCESS",
+      title:     "Payment Confirmed ✅",
+      message:   `Payment of ₹${total.toLocaleString("en-IN")} for order #${order.orderNumber} received.`,
+      icon:      "✅",
+      link:      `/account/orders/${order.id}`,
+      priority:  "HIGH",
+      emailSent: !!userEmail,
+    });
+
+    // ── In-app: admin new order ───────────────────────────────────────────────
+    void createAdminNotification({
+      type:     "ADMIN_NEW_ORDER",
+      title:    `New Order: #${order.orderNumber}`,
+      message:  `${userName} placed an order for ₹${total.toLocaleString("en-IN")}.`,
+      icon:     "📦",
+      link:     `/admin/orders/${order.id}`,
+      priority: "HIGH",
+      metadata: { orderId: order.id, total, customerName: userName },
+    });
+
+    void createAdminNotification({
+      type:     "ADMIN_PAYMENT_SUCCESS",
+      title:    "Payment Received ✅",
+      message:  `Payment of ₹${total.toLocaleString("en-IN")} received for order #${order.orderNumber} (${razorpay_payment_id}).`,
+      icon:     "💳",
+      link:     `/admin/orders/${order.id}`,
+      priority: "NORMAL",
+    });
+
     // Low / out-of-stock alerts (check post-transaction stock)
     for (const item of cart.items) {
       const product = await prisma.product.findUnique({
@@ -310,12 +356,30 @@ export async function POST(req: NextRequest) {
           sku: product.sku,
           productId: item.product.id,
         });
+        void createAdminNotification({
+          type:     "ADMIN_OUT_OF_STOCK",
+          title:    `Out of Stock: ${product.name}`,
+          message:  `${product.name} (SKU: ${product.sku}) is now out of stock and needs restocking.`,
+          icon:     "🚨",
+          link:     "/admin/inventory",
+          priority: "URGENT",
+          metadata: { productId: item.product.id, sku: product.sku },
+        });
       } else if (product.stock <= LOW_STOCK_THRESHOLD) {
         sendAdminLowStockEmail({
           productName: product.name,
           sku: product.sku,
           currentStock: product.stock,
           productId: item.product.id,
+        });
+        void createAdminNotification({
+          type:     "ADMIN_LOW_STOCK",
+          title:    `Low Stock: ${product.name}`,
+          message:  `${product.name} (SKU: ${product.sku}) has only ${product.stock} unit${product.stock === 1 ? "" : "s"} remaining.`,
+          icon:     "⚠️",
+          link:     "/admin/inventory",
+          priority: "HIGH",
+          metadata: { productId: item.product.id, sku: product.sku, stock: product.stock },
         });
       }
     }

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { sendOrderStatusEmail, sendRefundProcessedEmail } from "@/lib/email";
+import { createNotification, createAdminNotification } from "@/lib/notifications";
 
 type OrderStatus =
   | "PLACED" | "CONFIRMED" | "PACKED" | "SHIPPED"
@@ -155,6 +156,43 @@ export async function updateOrderStatus(
     );
   }
 
+  // ── In-app notifications ──────────────────────────────────────────────────
+  const statusNotifMap: Record<string, { type: Parameters<typeof createNotification>[0]["type"]; title: string; message: string; icon: string }> = {
+    CONFIRMED:        { type: "ORDER_CONFIRMED",    title: "Order Confirmed ✅",         message: `Your order #${updatedOrder.orderNumber} has been confirmed and is being prepared.`, icon: "✅" },
+    PACKED:           { type: "ORDER_PACKED",       title: "Order Packed 📦",            message: `Your order #${updatedOrder.orderNumber} is packed and ready to ship.`,             icon: "📦" },
+    SHIPPED:          { type: "ORDER_SHIPPED",      title: "Your Order Is Shipped 🚚",   message: `Your order #${updatedOrder.orderNumber} is on its way!${meta?.courierPartner ? ` (${meta.courierPartner})` : ""}`, icon: "🚚" },
+    OUT_FOR_DELIVERY: { type: "OUT_FOR_DELIVERY",   title: "Out for Delivery 🏠",        message: `Your order #${updatedOrder.orderNumber} is out for delivery today!`,              icon: "🏠" },
+    DELIVERED:        { type: "ORDER_DELIVERED",    title: "Order Delivered 🎁",         message: `Your order #${updatedOrder.orderNumber} has been delivered. We hope you love it!`, icon: "🎁" },
+    CANCELLED:        { type: "ORDER_CANCELLED",    title: "Order Cancelled ❌",          message: `Your order #${updatedOrder.orderNumber} has been cancelled.${meta?.cancellationReason ? ` Reason: ${meta.cancellationReason}` : ""}`, icon: "❌" },
+    RETURNED:         { type: "REFUND_PROCESSED",   title: "Refund Processed 💸",        message: `Your refund for order #${updatedOrder.orderNumber} has been initiated.`,           icon: "💸" },
+  };
+
+  const notifData = statusNotifMap[status];
+  if (notifData && updatedOrder?.userId) {
+    void createNotification({
+      userId:    updatedOrder.userId,
+      role:      "CUSTOMER",
+      type:      notifData.type,
+      title:     notifData.title,
+      message:   notifData.message,
+      icon:      notifData.icon,
+      link:      `/account/orders/${orderId}`,
+      priority:  status === "DELIVERED" ? "HIGH" : "NORMAL",
+      emailSent: !!updatedOrder.user?.email,
+    });
+  }
+
+  if (status === "CANCELLED") {
+    void createAdminNotification({
+      type:     "ADMIN_ORDER_CANCELLED",
+      title:    `Order Cancelled: #${updatedOrder.orderNumber}`,
+      message:  `Admin cancelled order #${updatedOrder.orderNumber} for ${updatedOrder.user?.name ?? "customer"}.`,
+      icon:     "❌",
+      link:     `/admin/orders/${orderId}`,
+      priority: "HIGH",
+    });
+  }
+
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${orderId}`);
   return { success: true };
@@ -213,6 +251,26 @@ export async function cancelOrder(orderId: string) {
       where: { id: orderId },
       data: { status: "CANCELLED" },
     });
+  });
+
+  void createNotification({
+    userId:   session.user.id,
+    role:     "CUSTOMER",
+    type:     "ORDER_CANCELLED",
+    title:    "Order Cancelled",
+    message:  `Your order #${order.orderNumber} has been cancelled. Any payment will be refunded within 5-7 business days.`,
+    icon:     "❌",
+    link:     `/account/orders/${orderId}`,
+    priority: "NORMAL",
+  });
+
+  void createAdminNotification({
+    type:     "ADMIN_ORDER_CANCELLED",
+    title:    `Order Cancelled: #${order.orderNumber}`,
+    message:  `Customer cancelled order #${order.orderNumber}.`,
+    icon:     "❌",
+    link:     `/admin/orders/${orderId}`,
+    priority: "HIGH",
   });
 
   revalidatePath("/account/orders");
